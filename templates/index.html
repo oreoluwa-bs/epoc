@@ -5,7 +5,347 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Epoc</title>
   </head>
+  <style>
+    html,
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
+        Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans", "Helvetica Neue",
+        sans-serif;
+    }
+
+    *,
+    *::after,
+    *::before {
+      box-sizing: border-box;
+    }
+
+    .calendar {
+    }
+
+    .calendar-view,
+    .calendar-header {
+      display: grid;
+      grid-template-columns: 50px 1fr;
+    }
+
+    .calendar-time-container {
+      display: grid;
+      grid-template-rows: repeat(24, 2em);
+    }
+
+    .calendar-day-container,
+    .heading-days {
+      display: grid;
+      grid-template-columns: repeat(7, 1fr);
+    }
+
+    .heading-days > div {
+      border: 1px dashed gainsboro;
+      padding: 4px;
+    }
+
+    .calendar-day {
+      display: grid;
+      /* grid-template-columns: 1fr; */
+      grid-template-rows: repeat(48, 1em);
+      /* grid-template-rows: repeat(24, 2em); */
+      /* grid-auto-flow: column; */
+      border: 1px dashed gainsboro;
+    }
+
+    .day-hour-span {
+      border: 1px dashed gainsboro;
+    }
+
+    .calendar-current-day {
+      color: crimson;
+    }
+
+    .event {
+      background-color: crimson;
+      color: white;
+      transition: grid-row 0.3s ease-in-out, all 0.3s ease-in-out;
+      grid-row: var(--col-start) / var(--col-end); /* Change the span on hover */
+      padding: 4px;
+      border-radius: 4px;
+
+      font-size: 12px;
+      z-index: 1;
+      height: var(--height, 100%);
+    }
+
+    .event:hover {
+      /* grid-row: 15 / span 2; */
+    }
+
+    /* @property --col-start {
+      syntax: "<number>"; 
+      initial-value: 0;
+      inherits: false;
+    }
+    @property --col-end {
+      syntax: "<integer>";
+      initial-value: 0;
+      inherits: false;
+    } */
+  </style>
   <body>
     <h1>The calendar app</h1>
+
+    <div class="calendar">
+      <!-- <div class="calendar-toolbar">
+        <div>
+          <button id="prev-btn">Previous Week</button>
+          <button id="next-btn">Next Week</button>
+        </div>
+      </div> -->
+    </div>
+
+    <script>
+      class Calendar {
+        /**
+         * @typedef {Object.<string, HTMLElement>} DOMObject
+         */
+
+        /**
+         * @type {DOMObject}
+         */
+        DOM = {};
+
+        /**
+         * @param {HTMLElement} el
+         */
+        constructor(el) {
+          this.DOM.el = el;
+
+          // Create calendar-view
+          const calendarToolbar = document.createElement("div");
+          calendarToolbar.classList.add("calendar-toolbar");
+          this.DOM.calendarToolbar = calendarToolbar;
+
+          const actionButtons = document.createElement("div");
+          const prevWeekButton = document.createElement("button");
+          prevWeekButton.innerText = "Previous Week";
+          const nextWeekButton = document.createElement("button");
+          nextWeekButton.innerText = "Next Week";
+          prevWeekButton.addEventListener("click", this.prevWeek.bind(this));
+          nextWeekButton.addEventListener("click", this.nextWeek.bind(this));
+
+          this.DOM.nextBtn = nextWeekButton;
+          this.DOM.prevBtn = prevWeekButton;
+          actionButtons.append(this.DOM.prevBtn, this.DOM.nextBtn);
+
+          this.DOM.calendarToolbar.append(actionButtons);
+
+          const calendarHeader = document.createElement("div");
+          calendarHeader.classList.add("calendar-header");
+          this.DOM.calendarHeader = calendarHeader;
+
+          const calendarView = document.createElement("div");
+          calendarView.classList.add("calendar-view");
+          this.DOM.calendarView = calendarView;
+
+          const timeContainer = document.createElement("div");
+          timeContainer.classList.add("calendar-time-container");
+          this.DOM.timeContainer = timeContainer;
+
+          const dayContainer = document.createElement("div");
+          dayContainer.classList.add("calendar-day-container");
+          this.DOM.dayContainer = dayContainer;
+
+          this.DOM.calendarView.append(
+            this.DOM.timeContainer,
+            this.DOM.dayContainer
+          );
+
+          this.DOM.el.append(
+            this.DOM.calendarToolbar,
+            this.DOM.calendarHeader,
+            this.DOM.calendarView
+          );
+          this.render();
+        }
+
+        /**
+         * @param {Date} date
+         * @returns {Date}
+         */
+        getStartOfWeek(date) {
+          const dayOfWeek = date.getDay();
+          const startOfWeek = new Date(date);
+          startOfWeek.setDate(date.getDate() - dayOfWeek);
+          return startOfWeek;
+        }
+
+        prevWeek() {
+          const currentDate = this.getStartOfWeek(this.startDate);
+          currentDate.setDate(currentDate.getDate() - 7);
+          this.render(currentDate);
+        }
+
+        nextWeek() {
+          const currentDate = this.getStartOfWeek(this.startDate);
+          currentDate.setDate(currentDate.getDate() + 7);
+          this.render(currentDate);
+        }
+
+        get hoursInADay() {
+          return [...new Array(24)].map((_, ind) => ind);
+        }
+
+        get getCurrentWeek() {
+          const startOfWeek = this.getStartOfWeek(this.startDate);
+          const dates = [...new Array(7)].map((_, i) => {
+            const date = new Date(startOfWeek.getTime());
+            date.setDate(startOfWeek.getDate() + i);
+            return date;
+          });
+
+          return dates;
+        }
+
+        /**
+         * @param {Date} date
+         */
+        isToday(date) {
+          const now = new Date();
+
+          return (
+            date.getDate() === now.getDate() &&
+            date.getMonth() === now.getMonth() &&
+            date.getFullYear() === now.getFullYear()
+          );
+        }
+
+        render(startDate = new Date()) {
+          this.startDate = startDate;
+
+          // reset
+          this.DOM.timeContainer.innerHTML = "";
+          this.DOM.dayContainer.innerHTML = "";
+          this.DOM.calendarHeader.innerHTML = "";
+
+          // Render time
+          this.renderTime();
+
+          // Render day
+          this.renderDay();
+        }
+
+        renderTime() {
+          this.hoursInADay.forEach((hour) => {
+            const div = document.createElement("div");
+            div.classList.add("day-hour-span");
+
+            const value = `${hour.toString().padStart(2, "0")}`;
+            div.innerHTML = value;
+
+            div.setAttribute("data-hour", value);
+
+            this.DOM.timeContainer.append(div);
+          });
+        }
+
+        renderDay() {
+          // Header
+          const timeDiv = document.createElement("div");
+          this.DOM.calendarHeader.append(timeDiv);
+          timeDiv.innerText = "00";
+          timeDiv.style.visibility = "hidden";
+
+          const dateDiv = document.createElement("div");
+          this.DOM.calendarHeader.append(dateDiv);
+          dateDiv.classList.add("heading-days");
+
+          this.getCurrentWeek.forEach((weekDay) => {
+            const dayOfMonth = weekDay.getDate().toString();
+
+            const div = document.createElement("div");
+            div.innerHTML = `<div class='calendar-week-head'>
+        <div class='day-num'>${dayOfMonth.padStart(2, "0")}</div>
+            <div class='day-text'>
+                ${new Intl.DateTimeFormat("en", { weekday: "long" }).format(
+                  weekDay
+                )}
+            </div>
+        </div>`;
+
+            if (this.isToday(weekDay)) {
+              div.classList.add("calendar-current-day");
+            }
+
+            dateDiv.appendChild(div);
+          });
+
+          this.getCurrentWeek.forEach((weekDay) => {
+            const dayOfMonth = weekDay.getDate().toString();
+
+            const div = document.createElement("div");
+            div.classList.add("calendar-day");
+            // div.innerHTML = `<div></div>`;
+
+            this.hoursInADay.forEach((hour) => {
+              const firstHalfSlot = document.createElement("div");
+              firstHalfSlot.style.borderTop = "0.25px dashed gainsboro";
+              firstHalfSlot.style.gridRow = hour * 2 + 1 + " / span 1";
+              firstHalfSlot.style.gridColumn = 1;
+              // firstHalfSlot.style.width = "100%";
+              const value = `${hour.toString().padStart(2, "0")}`;
+              // firstHalfSlot.innerHTML = value;
+
+              firstHalfSlot.setAttribute("data-hour", value);
+
+              const secondHalfSlot = document.createElement("div");
+              secondHalfSlot.style.gridRow = hour * 2 + 2 + " / span 1";
+              secondHalfSlot.style.gridColumn = 1;
+              // secondHalfSlot.style.width = "100px";
+
+              // secondHalfSlot.style.borderBlock = "0.25px dashed gainsboro";
+
+              div.append(firstHalfSlot, secondHalfSlot);
+            });
+
+            // const startHour = getRandomInt(0, 23);
+            // const endHour = getRandomInt(startHour + 1, 23);
+
+            // const event = document.createElement("div");
+            // event.classList.add("event");
+            // event.innerText =
+            //   "New Event at " + startHour + " ends at " + endHour;
+            // event.style.setProperty("--col-start", startHour * 2 + 1);
+            // event.style.setProperty("--col-end", endHour * 2 + 1);
+            // // event.style.gridRowStart = randomHour * 2 + 1;
+            // // event.style.gridRow = "span 2";
+            // event.style.gridColumn = 1;
+
+            // event.addEventListener("click", function () {
+            //   // event.style.setProperty("--col-end", endHour * 2 + 7);
+            //   // event.style.setProperty(
+            //   //   "--height",
+            //   //   event.getBoundingClientRect().height + 100 + "px"
+            //   // );
+            // });
+
+            // div.append(event);
+
+            this.DOM.dayContainer.appendChild(div);
+          });
+        }
+      }
+
+      /**
+       * Get a random integer between a specified range (inclusive).
+       * @param {number} min - The minimum value of the range.
+       * @param {number} max - The maximum value of the range.
+       * @returns {number} - A random integer within the specified range.
+       */
+      function getRandomInt(min, max) {
+        min = Math.ceil(min);
+        max = Math.floor(max);
+        return Math.floor(Math.random() * (max - min + 1)) + min;
+      }
+
+      const cal = new Calendar(document.querySelector(".calendar"));
+    </script>
   </body>
 </html>
