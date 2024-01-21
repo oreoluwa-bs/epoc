@@ -117,8 +117,21 @@
          */
         constructor(el) {
           this.DOM.el = el;
+          this.initDOM();
+          this.render();
+        }
 
-          // Create calendar-view
+        initDOM() {
+          this.createToolbar();
+          this.createHeaderAndView();
+          this.DOM.el.append(
+            this.DOM.calendarToolbar,
+            this.DOM.calendarHeader,
+            this.DOM.calendarView
+          );
+        }
+
+        createToolbar() {
           const calendarToolbar = document.createElement("div");
           calendarToolbar.classList.add("calendar-toolbar");
           this.DOM.calendarToolbar = calendarToolbar;
@@ -126,44 +139,49 @@
           const actionButtons = document.createElement("div");
           const prevWeekButton = document.createElement("button");
           prevWeekButton.innerText = "Previous Week";
+
+          prevWeekButton.addEventListener("click", this.prevWeek.bind(this));
+
           const nextWeekButton = document.createElement("button");
           nextWeekButton.innerText = "Next Week";
-          prevWeekButton.addEventListener("click", this.prevWeek.bind(this));
+
           nextWeekButton.addEventListener("click", this.nextWeek.bind(this));
 
-          this.DOM.nextBtn = nextWeekButton;
           this.DOM.prevBtn = prevWeekButton;
+          this.DOM.nextBtn = nextWeekButton;
           actionButtons.append(this.DOM.prevBtn, this.DOM.nextBtn);
 
           this.DOM.calendarToolbar.append(actionButtons);
+        }
 
-          const calendarHeader = document.createElement("div");
-          calendarHeader.classList.add("calendar-header");
-          this.DOM.calendarHeader = calendarHeader;
-
-          const calendarView = document.createElement("div");
-          calendarView.classList.add("calendar-view");
-          this.DOM.calendarView = calendarView;
-
-          const timeContainer = document.createElement("div");
-          timeContainer.classList.add("calendar-time-container");
-          this.DOM.timeContainer = timeContainer;
-
-          const dayContainer = document.createElement("div");
-          dayContainer.classList.add("calendar-day-container");
-          this.DOM.dayContainer = dayContainer;
+        createHeaderAndView() {
+          this.DOM.calendarHeader = document.createElement("div");
+          this.DOM.calendarHeader.classList.add("calendar-header");
+          this.DOM.calendarView = document.createElement("div");
+          this.DOM.calendarView.classList.add("calendar-view");
+          this.DOM.timeContainer = document.createElement("div");
+          this.DOM.timeContainer.classList.add("calendar-time-container");
+          this.DOM.dayContainer = document.createElement("div");
+          this.DOM.dayContainer.classList.add("calendar-day-container");
 
           this.DOM.calendarView.append(
             this.DOM.timeContainer,
             this.DOM.dayContainer
           );
+        }
 
-          this.DOM.el.append(
-            this.DOM.calendarToolbar,
-            this.DOM.calendarHeader,
-            this.DOM.calendarView
-          );
-          this.render();
+        prevWeek() {
+          this.render(this.adjustDate(-7));
+        }
+
+        nextWeek() {
+          this.render(this.adjustDate(7));
+        }
+
+        adjustDate(days) {
+          const currentDate = this.getStartOfWeek(this.startDate);
+          currentDate.setDate(currentDate.getDate() + days);
+          return currentDate;
         }
 
         /**
@@ -175,18 +193,6 @@
           const startOfWeek = new Date(date);
           startOfWeek.setDate(date.getDate() - dayOfWeek);
           return startOfWeek;
-        }
-
-        prevWeek() {
-          const currentDate = this.getStartOfWeek(this.startDate);
-          currentDate.setDate(currentDate.getDate() - 7);
-          this.render(currentDate);
-        }
-
-        nextWeek() {
-          const currentDate = this.getStartOfWeek(this.startDate);
-          currentDate.setDate(currentDate.getDate() + 7);
-          this.render(currentDate);
         }
 
         get hoursInADay() {
@@ -305,28 +311,28 @@
               div.append(firstHalfSlot, secondHalfSlot);
             });
 
-            // const startHour = getRandomInt(0, 23);
-            // const endHour = getRandomInt(startHour + 1, 23);
+            const startHour = getRandomInt(0, 23);
+            const endHour = getRandomInt(startHour + 1, 23);
 
-            // const event = document.createElement("div");
-            // event.classList.add("event");
-            // event.innerText =
-            //   "New Event at " + startHour + " ends at " + endHour;
-            // event.style.setProperty("--col-start", startHour * 2 + 1);
-            // event.style.setProperty("--col-end", endHour * 2 + 1);
-            // // event.style.gridRowStart = randomHour * 2 + 1;
-            // // event.style.gridRow = "span 2";
-            // event.style.gridColumn = 1;
+            const event = document.createElement("div");
+            event.classList.add("event");
+            event.innerText =
+              "New Event at " + startHour + " ends at " + endHour;
+            event.style.setProperty("--col-start", startHour * 2 + 1);
+            event.style.setProperty("--col-end", endHour * 2 + 1);
+            // event.style.gridRowStart = randomHour * 2 + 1;
+            // event.style.gridRow = "span 2";
+            event.style.gridColumn = 1;
 
-            // event.addEventListener("click", function () {
-            //   // event.style.setProperty("--col-end", endHour * 2 + 7);
-            //   // event.style.setProperty(
-            //   //   "--height",
-            //   //   event.getBoundingClientRect().height + 100 + "px"
-            //   // );
-            // });
+            event.addEventListener("click", function () {
+              // event.style.setProperty("--col-end", endHour * 2 + 7);
+              // event.style.setProperty(
+              //   "--height",
+              //   event.getBoundingClientRect().height + 100 + "px"
+              // );
+            });
 
-            // div.append(event);
+            div.append(event);
 
             this.DOM.dayContainer.appendChild(div);
           });
