@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -14,13 +15,16 @@ import (
 )
 
 type App struct {
+	config Config
 	router http.Handler
 	db     *sql.DB
 }
 
-func New() *App {
+func New(cfg Config) *App {
 
-	app := &App{}
+	app := &App{
+		config: cfg,
+	}
 	app.loadDB()
 	app.loadRoutes()
 
@@ -30,7 +34,7 @@ func New() *App {
 func (a *App) Start(ctx context.Context) error {
 
 	server := &http.Server{
-		Addr:    ":8000",
+		Addr:    fmt.Sprintf(":%d", a.config.PORT),
 		Handler: a.router,
 	}
 
@@ -39,16 +43,37 @@ func (a *App) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to connect to database: %w", err)
 	}
 
-	err = server.ListenAndServe()
-	if err != nil {
-		return fmt.Errorf("failed to start server: %w", err)
+	defer func() {
+		if err := a.db.Close(); err != nil {
+			fmt.Println("failed to close database", err)
+		}
+	}()
+
+	ch := make(chan error, 1)
+
+	go func() {
+		fmt.Println("Listening on port ", server.Addr)
+		err = server.ListenAndServe()
+		if err != nil {
+			ch <- fmt.Errorf("failed to start server: %w", err)
+		}
+		close(ch)
+	}()
+
+	select {
+	case err = <-ch:
+		return err
+	case <-ctx.Done():
+		timeout, cancel := context.WithTimeout(context.Background(), time.Second*10)
+		defer cancel()
+		return server.Shutdown(timeout)
 	}
 
-	return nil
+	// return nil
 }
 
 func (a *App) loadDB() {
-	db, err := sql.Open("sqlite3", "data/data.db")
+	db, err := sql.Open("sqlite3", a.config.DatabaseURL)
 
 	if err != nil {
 		log.Fatal("failed to initialise database: ", err)
