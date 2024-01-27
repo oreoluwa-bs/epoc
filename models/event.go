@@ -113,3 +113,109 @@ func (es *EventStore) GetAll(filters GetAllEventFilters) ([]Event, error) {
 	return events, nil
 
 }
+
+func (es *EventStore) GetById(id int) (Event, error) {
+
+	query := `SELECT id, name, description, starts_at, ends_at FROM events WHERE id=?`
+
+	fmt.Println(query, id)
+
+	row := es.DB.QueryRow(query, id)
+
+	event := Event{}
+	err := row.Scan(&event.Id, &event.Name, &event.Description, &event.StartsAt, &event.EndsAt)
+	if err != nil {
+		return Event{}, err
+	}
+
+	if row.Err() != nil {
+		return Event{}, err
+
+	}
+
+	return event, nil
+}
+
+type UpdateEvent struct {
+	Id          int       `json:"id"`
+	Name        string    `json:"name"`
+	Description string    `json:"description"`
+	StartsAt    time.Time `json:"starts_at"`
+	EndsAt      time.Time `json:"ends_at"`
+}
+
+func validateUpdateEvent(event Event) error {
+	if len(event.Name) < 1 {
+		return errors.New("event name is required")
+	}
+
+	if !event.StartsAt.Before(event.EndsAt) {
+		return errors.New("start date must be before the end date")
+	}
+
+	return nil
+}
+
+func (es *EventStore) UpdateById(eventData UpdateEvent) (Event, error) {
+
+	_, err := es.GetById(eventData.Id)
+	if err != nil {
+		return Event{}, err
+	}
+
+	if err := validateUpdateEvent(Event(eventData)); err != nil {
+		return Event{}, err
+	}
+
+	query := `UPDATE events SET name=?, description=?, starts_at=?, ends_at=? WHERE id=?`
+
+	args := []interface{}{
+		eventData.Name,
+		eventData.Description,
+		eventData.StartsAt,
+		eventData.EndsAt,
+		eventData.Id,
+	}
+
+	fmt.Println(query, args)
+
+	statement, err := es.DB.Prepare(query)
+	if err != nil {
+		return Event{}, err
+	}
+
+	_, err = statement.Exec(args...)
+	if err != nil {
+		return Event{}, err
+	}
+
+	return Event(eventData), nil
+}
+
+func (es *EventStore) DeleteById(id int) error {
+
+	existing, err := es.GetById(id)
+	if err != nil {
+		return err
+	}
+
+	query := `DELETE FROM events WHERE id=?`
+
+	args := []interface{}{
+		existing.Id,
+	}
+
+	fmt.Println(query, args)
+
+	statement, err := es.DB.Prepare(query)
+	if err != nil {
+		return err
+	}
+
+	_, err = statement.Exec(args...)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
